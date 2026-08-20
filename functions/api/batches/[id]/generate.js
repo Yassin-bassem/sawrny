@@ -40,18 +40,17 @@ export async function onRequestPost(context) {
     });
   }
 
-  // Helper for chunked Base64 conversion
+  // Helper for safe Base64 conversion without stack overflow
   function bufferToBase64(arrayBuf) {
     const bytes = new Uint8Array(arrayBuf);
     let binary = '';
-    const chunk = 8192;
-    for (let i = 0; i < bytes.length; i += chunk) {
-      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
     }
     return btoa(binary);
   }
 
-  // 2. Process each item in batch with Google Gemini 2.5 Image REST API
+  // 2. Process each item in batch with Google Gemini REST API
   const results = [];
   for (const item of batch.items) {
     try {
@@ -62,8 +61,14 @@ export async function onRequestPost(context) {
         bgPrompt = "standing in a sunny lush garden with warm golden hour light and soft greenery background bokeh";
       }
 
+      const isBackDesign = item.designPosition === 'back' || item.designOnBack === true;
+      let viewPrompt = "FRONT VIEW: The child model is facing forward showing the front of the garment.";
+      if (isBackDesign) {
+        viewPrompt = "REAR VIEW / BACK VIEW OF CHILD MODEL: The print, logo, pattern, or main artwork design of this outfit is located ON THE BACK of the garment. Render a back view / rear view photo showing the child model facing away from the camera or turned around so the BACK of the outfit and its artwork are clearly displayed. CRITICAL MANDATE: DO NOT place the main artwork or design on the front of the garment; the front must remain plain/clean and the main design featured on the rear/back of the child model.";
+      }
+
       const genderTerm = item.gender === 'Girl' ? 'cute young girl model' : item.gender === 'Boy' ? 'cute young boy model' : 'cute child model';
-      const promptText = `RAW high resolution commercial fashion catalog photograph, a happy ${genderTerm} (${item.ageGroup || '2-5 yrs'}) ${bgPrompt}, actively WEARING THIS EXACT children clothing item on their body. CRITICAL MANDATE: The photo MUST feature a real human child model wearing the garment. DO NOT show hangers or empty clothing displays. Sharp focus studio camera photography, 8k resolution commercial kids clothing catalog.`;
+      const promptText = `RAW high resolution commercial fashion catalog photograph, a happy ${genderTerm} (${item.ageGroup || '2-5 yrs'}) ${bgPrompt}, actively WEARING THIS EXACT children clothing item on their body. ${viewPrompt} CRITICAL MANDATE: The photo MUST feature a real human child model wearing the garment. DO NOT show hangers or empty clothing displays. Sharp focus studio camera photography, 8k resolution commercial kids clothing catalog.`;
 
       let imagePart = null;
       if (item.originalUrl && item.originalUrl.startsWith('http')) {
@@ -80,8 +85,8 @@ export async function onRequestPost(context) {
         } catch (e) {}
       }
 
-      // Call Google Gemini 2.5 Image REST API with High Resolution Config
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${apiKey}`;
+      // Call Google Gemini 2.5 REST API
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
       const payloadParts = [{ text: promptText }];
       if (imagePart) payloadParts.push(imagePart);
 

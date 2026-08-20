@@ -335,6 +335,21 @@ body {
   letter-spacing: 1px;
 }
 
+.back-design-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: rgba(255, 43, 133, 0.88);
+  border: 1px solid var(--primary-magenta);
+  color: #FFF;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba(255, 43, 133, 0.4);
+}
+
 /* Control Options inside Item Card */
 .item-control-group {
   display: flex;

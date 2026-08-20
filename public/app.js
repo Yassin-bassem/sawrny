@@ -18,7 +18,8 @@ document.addEventListener('DOMContentLoaded', () => {
       ageGroup: 'Baby (0-1 yr)',
       gender: 'Girl',
       productCode: 'MM-801',
-      campaignMode: 'model'
+      campaignMode: 'model',
+      designPosition: 'front'
     },
     {
       id: 'sample_2',
@@ -27,7 +28,8 @@ document.addEventListener('DOMContentLoaded', () => {
       ageGroup: 'Kids (4-6 yrs)',
       gender: 'Unisex',
       productCode: 'MM-802',
-      campaignMode: 'model'
+      campaignMode: 'model',
+      designPosition: 'front'
     }
   ];
 
@@ -207,10 +209,13 @@ document.addEventListener('DOMContentLoaded', () => {
       if (currentBatch.logoPosition === 'bottom-right') logoPosStyle = 'bottom:45px; right:12px;';
       if (currentBatch.logoPosition === 'bottom-left') logoPosStyle = 'bottom:45px; left:12px;';
 
+      const isBack = item.designPosition === 'back';
+
       card.innerHTML = `
         <div class="item-photo-wrapper">
           <img src="${item.originalUrl}" alt="Garment Photo">
           <img src="${brandLogoPreview.src}" class="watermark-badge-preview" style="${logoPosStyle}" alt="Watermark Badge">
+          ${isBack ? '<div class="back-design-badge">🔄 Back Design</div>' : ''}
           <div class="code-overlay-badge">CODE: ${item.productCode || 'MM-' + (index + 1)}</div>
         </div>
 
@@ -237,6 +242,18 @@ document.addEventListener('DOMContentLoaded', () => {
               { label: 'Unisex 👶', val: 'Unisex' }
             ].map(g => `
               <button type="button" class="pill-btn gender-pill ${item.gender === g.val ? 'active' : ''}" data-idx="${index}" data-val="${g.val}">${g.label}</button>
+            `).join('')}
+          </div>
+        </div>
+
+        <div class="item-control-group">
+          <label class="input-label">Artwork / Design Position</label>
+          <div class="pill-group">
+            ${[
+              { label: '👕 Front (Default)', val: 'front' },
+              { label: '🔄 Back of Child (Rear)', val: 'back' }
+            ].map(d => `
+              <button type="button" class="pill-btn design-pill ${(item.designPosition === d.val || (!item.designPosition && d.val === 'front')) ? 'active' : ''}" data-idx="${index}" data-val="${d.val}">${d.label}</button>
             `).join('')}
           </div>
         </div>
@@ -281,6 +298,14 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.addEventListener('click', (e) => {
         const idx = btn.dataset.idx;
         currentBatch.items[idx].gender = btn.dataset.val;
+        renderItems();
+      });
+    });
+
+    document.querySelectorAll('.design-pill').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const idx = btn.dataset.idx;
+        currentBatch.items[idx].designPosition = btn.dataset.val;
         renderItems();
       });
     });

@@ -167,7 +167,8 @@ if (process.env.TELEGRAM_BOT_TOKEN && process.env.ENABLE_LOCAL_POLLING === 'true
           ageGroup: 'Kids (4-6 yrs)',
           gender: 'Unisex',
           productCode: `MM-${100 + session.items.length + 1}`,
-          campaignMode: 'model'
+          campaignMode: 'model',
+          designPosition: 'front'
         });
 
         // Clear existing timer and set a 3-second buffer to collect batch photos
@@ -319,9 +320,15 @@ async function generateGarmentPhotoshoot(item, logoPath, logoPosition, isCampaig
       }
     };
 
+    const isBackDesign = item.designPosition === 'back' || item.designOnBack === true;
+    let viewPrompt = "FRONT VIEW: The child model is facing forward showing the front of the garment.";
+    if (isBackDesign) {
+      viewPrompt = "REAR VIEW / BACK VIEW OF CHILD MODEL: The print, logo, pattern, or main artwork design of this outfit is located ON THE BACK of the garment. Render a back view / rear view photo showing the child model facing away from the camera or turned around so the BACK of the outfit and its artwork are clearly displayed. CRITICAL MANDATE: DO NOT place the main artwork or design on the front of the garment; the front must remain plain/clean and the main design featured on the rear/back of the child model.";
+    }
+
     // 1. Gemini Vision Analysis for detailed garment context
     try {
-      const promptText = `Analyze this children's apparel photo. Describe:
+      const promptText = `Analyze this children's apparel photo${isBackDesign ? ' (Note: main design/print is on the back of the garment)' : ''}. Describe:
 1. Garment type & style (hooded cape, jogger pants, pajama set, onesie, jacket).
 2. Primary colors & patterns.
 3. Specific graphics & prints.
@@ -360,7 +367,7 @@ Provide a concise 2-sentence description for fashion photoshoot prompt.`;
     const genderTerm = item.gender === 'Girl' ? 'cute young girl model' : item.gender === 'Boy' ? 'cute young boy model' : 'cute child model';
     const ageDetail = item.ageGroup || '2-5 years old';
 
-    const promptTextForGen = `A full-body commercial catalog photograph of a happy ${genderTerm} (${ageDetail}) ${bgPrompt}, actively WEARING THIS EXACT children apparel item on their body: ${garmentDescription}. CRITICAL MANDATE: The photo MUST feature a real human child model wearing the garment on their body. DO NOT generate hangers, wall shelves, wooden pegs, mannequins, or empty clothing displays. Show a real smiling child model wearing the outfit. Authentic camera photography, 8k resolution commercial kids clothing catalog.`;
+    const promptTextForGen = `A full-body commercial catalog photograph of a happy ${genderTerm} (${ageDetail}) ${bgPrompt}, actively WEARING THIS EXACT children apparel item on their body: ${garmentDescription}. ${viewPrompt} CRITICAL MANDATE: The photo MUST feature a real human child model wearing the garment on their body. DO NOT generate hangers, wall shelves, wooden pegs, mannequins, or empty clothing displays. Show a real child model wearing the outfit. Authentic camera photography, 8k resolution commercial kids clothing catalog.`;
 
     console.log(`[Official Multimodal Gemini Image API Prompt for ${item.productCode} (${backgroundStyle})]:`, promptTextForGen);
 
@@ -426,7 +433,8 @@ app.post('/api/upload-collection', upload.array('photos', 20), (req, res) => {
     ageGroup: 'Kids (4-6 yrs)',
     gender: 'Unisex',
     productCode: `MM-${100 + idx + 1}`,
-    campaignMode: 'model'
+    campaignMode: 'model',
+    designPosition: 'front'
   }));
 
   dataStore.batches[batchId] = {
@@ -494,7 +502,8 @@ app.post('/api/batches/:batchId/generate', async (req, res) => {
           ageGroup: 'Baby (0-1 yr)',
           gender: 'Girl',
           productCode: 'MM-801',
-          campaignMode: 'model'
+          campaignMode: 'model',
+          designPosition: 'front'
         },
         {
           id: 'sample_2',
@@ -503,7 +512,8 @@ app.post('/api/batches/:batchId/generate', async (req, res) => {
           ageGroup: 'Kids (4-6 yrs)',
           gender: 'Unisex',
           productCode: 'MM-802',
-          campaignMode: 'model'
+          campaignMode: 'model',
+          designPosition: 'front'
         }
       ]
     };
