@@ -11,6 +11,7 @@ export async function onRequestPost(context) {
   const apiKey = env.GEMINI_API_KEY;
   const supabaseUrl = env.SUPABASE_URL;
   const supabaseKey = env.SUPABASE_KEY;
+  const botToken = env.TELEGRAM_BOT_TOKEN;
 
   if (!apiKey) {
     return new Response(JSON.stringify({ error: 'GEMINI_API_KEY missing in Cloudflare Environment Variables' }), {
@@ -38,11 +39,22 @@ export async function onRequestPost(context) {
     });
   }
 
+  // Helper for chunked Base64 conversion
+  function bufferToBase64(arrayBuf) {
+    const bytes = new Uint8Array(arrayBuf);
+    let binary = '';
+    const chunk = 8192;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+    }
+    return btoa(binary);
+  }
+
   // 2. Process each item in batch with Google Gemini 2.5 Image REST API
   const results = [];
   for (const item of batch.items) {
     try {
-      let bgPrompt = "standing upright on a clean high-key white studio wooden floor with daylight lighting";
+      let bgPrompt = "standing upright on a clean high-key white studio wooden floor with soft studio daylight lighting";
       if (backgroundStyle === 'campaign') {
         bgPrompt = "standing in a cozy aesthetic nursery room with soft pastel backdrop walls, warm sunlight, eucalyptus greenery, and wooden decor";
       } else if (backgroundStyle === 'outdoor') {
@@ -50,19 +62,14 @@ export async function onRequestPost(context) {
       }
 
       const genderTerm = item.gender === 'Girl' ? 'cute young girl model' : item.gender === 'Boy' ? 'cute young boy model' : 'cute child model';
-      const promptText = `A full-body commercial catalog photograph of a happy ${genderTerm} (${item.ageGroup || '2-5 yrs'}) ${bgPrompt}, actively WEARING THIS EXACT children clothing item on their body. CRITICAL MANDATE: The photo MUST feature a real human child model wearing the garment. DO NOT show hangers or empty clothing. Authentic camera photography, 8k resolution.`;
+      const promptText = `A full-body commercial catalog photograph of a happy ${genderTerm} (${item.ageGroup || '2-5 yrs'}) ${bgPrompt}, actively WEARING THIS EXACT children clothing item on their body. CRITICAL MANDATE: The photo MUST feature a real human child model wearing the garment. DO NOT show hangers or empty clothing displays. Authentic camera photography, 8k resolution.`;
 
       let imagePart = null;
       if (item.originalUrl && item.originalUrl.startsWith('http')) {
         try {
           const imgRes = await fetch(item.originalUrl);
           const arrayBuf = await imgRes.arrayBuffer();
-          const bytes = new Uint8Array(arrayBuf);
-          let binary = '';
-          for (let i = 0; i < bytes.byteLength; i++) {
-            binary += String.fromCharCode(bytes[i]);
-          }
-          const base64Data = btoa(binary);
+          const base64Data = bufferToBase64(arrayBuf);
           imagePart = {
             inlineData: {
               mimeType: 'image/jpeg',
@@ -86,19 +93,48 @@ export async function onRequestPost(context) {
       });
 
       const genData = await genRes.json();
-      let generatedImgUrl = item.originalUrl;
+      let generatedImgB64 = null;
 
       if (genData.candidates && genData.candidates[0].content && genData.candidates[0].content.parts) {
         for (const p of genData.candidates[0].content.parts) {
           if (p.inlineData) {
-            generatedImgUrl = `data:${p.inlineData.mimeType};base64,${p.inlineData.data}`;
+            generatedImgB64 = p.inlineData.data;
             break;
           }
         }
       }
 
-      item.resultUrl = generatedImgUrl;
-      results.push({ ...item, resultUrl: generatedImgUrl });
+      let finalResultUrl = item.originalUrl;
+      if (generatedImgB64) {
+        finalResultUrl = `data:image/jpeg;base64,${generatedImgB64}`;
+
+        // Send Photo directly to Telegram if bot token and chatId exist
+        if (botToken && batch.chatId) {
+          try {
+            const byteCharacters = atob(generatedImgB64);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+              byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: 'image/jpeg' });
+
+            const formData = new FormData();
+            formData.append('chat_id', batch.chatId);
+            formData.append('photo', blob, `${item.productCode}_photoshoot.jpg`);
+            formData.append('caption', `✨ *Product Code:* ${item.productCode}\n👶 *Age:* ${item.ageGroup || '2-5 yrs'} | *Gender:* ${item.gender || 'Unisex'}`);
+            formData.append('parse_mode', 'Markdown');
+
+            await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+              method: 'POST',
+              body: formData
+            });
+          } catch (tgErr) {}
+        }
+      }
+
+      item.resultUrl = finalResultUrl;
+      results.push({ ...item, resultUrl: finalResultUrl });
     } catch (ie) {
       results.push({ ...item, resultUrl: item.originalUrl });
     }
