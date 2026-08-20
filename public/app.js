@@ -348,24 +348,106 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // 9. Show Gallery Modal
-  function showGallery(results) {
+  // 9. Client-Side HTML5 Canvas Watermarking Engine
+  async function applyClientBranding(imageUrl, productCode, logoPosition = 'top-right') {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+
+        // 1. Draw Transparent Logo
+        const logo = new Image();
+        logo.crossOrigin = 'anonymous';
+        logo.onload = () => {
+          const logoW = Math.round(canvas.width * 0.22);
+          const logoH = Math.round(logoW * (logo.height / logo.width));
+          const margin = Math.round(canvas.width * 0.04);
+
+          let lx = canvas.width - logoW - margin;
+          let ly = margin;
+          if (logoPosition === 'top-left') { lx = margin; ly = margin; }
+          else if (logoPosition === 'bottom-right') { lx = canvas.width - logoW - margin; ly = canvas.height - logoH - margin - 70; }
+          else if (logoPosition === 'bottom-left') { lx = margin; ly = canvas.height - logoH - margin - 70; }
+
+          ctx.drawImage(logo, lx, ly, logoW, logoH);
+          drawBadge();
+        };
+        logo.onerror = () => drawBadge();
+        logo.src = brandLogoPreview ? brandLogoPreview.src : '/assets/minime_logo_transparent.png';
+
+        // 2. Draw Product Code Badge
+        function drawBadge() {
+          if (productCode) {
+            const rawCode = productCode.trim().toUpperCase();
+            const fullText = rawCode.startsWith('CODE:') ? rawCode : `CODE: ${rawCode}`;
+            const fontSize = Math.max(18, Math.round(canvas.width * 0.034));
+            const paddingX = 24;
+            const paddingY = 12;
+
+            ctx.font = `bold ${fontSize}px Helvetica, Arial, sans-serif`;
+            const textMetrics = ctx.measureText(fullText);
+            const textW = textMetrics.width;
+
+            const badgeW = Math.max(200, Math.round(textW + paddingX * 2));
+            const badgeH = Math.round(fontSize + paddingY * 2 + 4);
+            const margin = Math.round(canvas.width * 0.04);
+
+            const bx = canvas.width - badgeW - margin;
+            const by = canvas.height - badgeH - margin;
+
+            // Draw dark rounded rect badge background
+            ctx.fillStyle = 'rgba(13, 17, 23, 0.92)';
+            ctx.strokeStyle = '#00D2C8';
+            ctx.lineWidth = 2;
+
+            ctx.beginPath();
+            if (ctx.roundRect) {
+              ctx.roundRect(bx, by, badgeW, badgeH, 10);
+            } else {
+              ctx.rect(bx, by, badgeW, badgeH);
+            }
+            ctx.fill();
+            ctx.stroke();
+
+            // Draw white text
+            ctx.fillStyle = '#FFFFFF';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(fullText, bx + badgeW / 2, by + badgeH / 2 + 1);
+          }
+
+          resolve(canvas.toDataURL('image/jpeg', 0.95));
+        }
+      };
+      img.onerror = () => resolve(imageUrl);
+      img.src = imageUrl;
+    });
+  }
+
+  // 10. Show Gallery Modal
+  async function showGallery(results) {
     galleryGrid.innerHTML = '';
     
-    results.forEach(res => {
+    for (const res of results) {
+      const brandedUrl = await applyClientBranding(res.resultUrl, res.productCode, currentBatch.logoPosition);
       const card = document.createElement('div');
       card.className = 'gallery-card';
       card.innerHTML = `
-        <img src="${res.resultUrl}?t=${Date.now()}" alt="Final Photoshoot Result">
+        <img src="${brandedUrl}" alt="Final Photoshoot Result">
         <div class="gallery-info">
           <span class="sku-tag">CODE: ${res.productCode}</span>
-          <a href="${res.resultUrl}" download="${res.productCode}_photoshoot.png" class="btn btn-secondary btn-sm">
+          <a href="${brandedUrl}" download="${res.productCode}_photoshoot.jpg" class="btn btn-secondary btn-sm">
             📥 Download
           </a>
         </div>
       `;
       galleryGrid.appendChild(card);
-    });
+    }
 
     galleryModal.style.display = 'flex';
   }
