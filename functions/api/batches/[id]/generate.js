@@ -124,17 +124,17 @@ export async function onRequestPost(context) {
       }
 
       let finalResultUrl = item.originalUrl;
+      let debugInfo = null;
       if (generatedImgB64) {
         finalResultUrl = `data:${imgMimeType};base64,${generatedImgB64}`;
       } else {
-        console.error('No generated image from Gemini:', JSON.stringify(genData));
+        debugInfo = genData;
       }
 
       item.resultUrl = finalResultUrl;
-      results.push({ ...item, resultUrl: finalResultUrl, chatId: batch.chatId });
+      results.push({ ...item, resultUrl: finalResultUrl, chatId: batch.chatId, debugInfo });
     } catch (ie) {
-      console.error('Item processing error:', ie.message);
-      results.push({ ...item, resultUrl: item.originalUrl, chatId: batch.chatId });
+      results.push({ ...item, resultUrl: item.originalUrl, chatId: batch.chatId, debugError: ie.message });
     }
   }
 
