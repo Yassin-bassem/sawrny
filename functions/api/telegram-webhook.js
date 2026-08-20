@@ -23,8 +23,8 @@ async function findRecentBatchForChat(supabaseUrl, supabaseKey, chatId) {
         const b = row.data;
         if (b && b.chatId === chatId) {
           const createdTime = new Date(b.createdAt).getTime();
-          // If created within last 4 seconds
-          if (now - createdTime < 4000) {
+          // If created within last 6 seconds
+          if (now - createdTime < 6000) {
             return b;
           }
         }
@@ -48,6 +48,43 @@ async function saveBatchToSupabase(supabaseUrl, supabaseKey, batchId, batchData)
       body: JSON.stringify({ id: batchId, data: batchData })
     });
   } catch (e) {}
+}
+
+async function sendOrEditTelegramMessage(botToken, chatId, telegramMessageId, text) {
+  if (telegramMessageId) {
+    try {
+      const editRes = await fetch(`https://api.telegram.org/bot${botToken}/editMessageText`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          message_id: telegramMessageId,
+          text: text,
+          parse_mode: 'Markdown'
+        })
+      });
+      const editData = await editRes.json();
+      if (editData.ok) return telegramMessageId;
+    } catch (e) {}
+  }
+
+  try {
+    const sendRes = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: text,
+        parse_mode: 'Markdown'
+      })
+    });
+    const sendData = await sendRes.json();
+    if (sendData.ok && sendData.result && sendData.result.message_id) {
+      return sendData.result.message_id;
+    }
+  } catch (e) {}
+
+  return null;
 }
 
 export async function onRequestPost(context) {
@@ -122,7 +159,8 @@ export async function onRequestPost(context) {
               chatId: chatId,
               createdAt: new Date().toISOString(),
               logoPosition: 'top-right',
-              items: []
+              items: [],
+              telegramMessageId: null
             };
           }
 
@@ -145,25 +183,25 @@ export async function onRequestPost(context) {
             await saveBatchToSupabase(supabaseUrl, supabaseKey, batchId, batch);
           }
 
-          // Wait 2.5 seconds to buffer concurrent album photos
+          // Buffer 2.5s for concurrent photo requests
           await new Promise(resolve => setTimeout(resolve, 2500));
 
           // Re-fetch latest batch state from Supabase
           const latestBatch = await getBatchFromSupabase(supabaseUrl, supabaseKey, batchId) || batch;
-
-          // Only send the response if this request's photo is the LAST item in the aggregated batch
           const lastItem = latestBatch.items[latestBatch.items.length - 1];
+
+          // Only the LAST photo in the batch array triggers the message send or edit
           if (lastItem && (lastItem.filename === targetFilename || lastItem.originalUrl === fileLink)) {
             const webAppUrl = `https://sawrny.pages.dev/#batch/${batchId}`;
             const countStr = latestBatch.items.length === 1 ? '1 garment photo' : `${latestBatch.items.length} garment photos`;
             const caption = `📸 *Received ${countStr} for Batch #${batchId}!*\n\n` +
               `👉 *Click here to open your Sawrny Mobile Dashboard:*\n${webAppUrl}`;
 
-            await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ chat_id: chatId, text: caption, parse_mode: 'Markdown' })
-            });
+            const newMsgId = await sendOrEditTelegramMessage(botToken, chatId, latestBatch.telegramMessageId, caption);
+            if (newMsgId && !latestBatch.telegramMessageId) {
+              latestBatch.telegramMessageId = newMsgId;
+              await saveBatchToSupabase(supabaseUrl, supabaseKey, batchId, latestBatch);
+            }
           }
         }
       }

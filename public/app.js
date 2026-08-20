@@ -334,7 +334,18 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify({ isCampaignExtra, backgroundStyle: selectedScene })
       });
 
-      const data = await res.json();
+      const responseText = await res.text();
+      let data = {};
+      try {
+        data = JSON.parse(responseText);
+      } catch (jsonErr) {
+        throw new Error(`Server returned invalid response (Status ${res.status}): ${responseText.substring(0, 100)}`);
+      }
+
+      if (!res.ok || data.error) {
+        throw new Error(data.error || `Server error (${res.status})`);
+      }
+
       progressBarFill.style.width = '100%';
 
       setTimeout(() => {

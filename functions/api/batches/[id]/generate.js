@@ -1,23 +1,25 @@
 export async function onRequestPost(context) {
-  const { env, params, request } = context;
-  const batchId = params.id;
-  
-  let body = {};
   try {
-    body = await request.json();
-  } catch (e) {}
+    const { env, params, request } = context;
+    const batchId = params.id;
+    
+    let body = {};
+    try {
+      body = await request.json();
+    } catch (e) {}
 
-  const backgroundStyle = body.backgroundStyle || 'white';
-  const apiKey = env.GEMINI_API_KEY;
-  const supabaseUrl = env.SUPABASE_URL;
-  const supabaseKey = env.SUPABASE_KEY;
+    const backgroundStyle = body.backgroundStyle || 'white';
+    const apiKey = env.GEMINI_API_KEY;
+    const supabaseUrl = env.SUPABASE_URL;
+    const supabaseKey = env.SUPABASE_KEY;
+    const botToken = env.TELEGRAM_BOT_TOKEN;
 
-  if (!apiKey) {
-    return new Response(JSON.stringify({ error: 'GEMINI_API_KEY missing in Cloudflare Environment Variables' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-    });
-  }
+    if (!apiKey) {
+      return new Response(JSON.stringify({ error: 'GEMINI_API_KEY missing in Cloudflare Environment Variables' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
 
   // 1. Fetch batch items from Supabase
   let batch = null;
@@ -151,4 +153,10 @@ export async function onRequestPost(context) {
   return new Response(JSON.stringify({ success: true, results, chatId: batch.chatId }), {
     headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
   });
+  } catch (err) {
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
+  }
 }
