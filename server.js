@@ -136,7 +136,8 @@ if (process.env.TELEGRAM_BOT_TOKEN) {
           };
           saveDataStore();
 
-          const webAppUrl = `http://localhost:${PORT}/#batch/${batchId}`;
+          const baseUrl = process.env.PUBLIC_URL || 'https://sawrny.pages.dev';
+          const webAppUrl = `${baseUrl}/#batch/${batchId}`;
           bot.sendMessage(chatId,
             `📸 *Received ${session.items.length} garment photos for Batch #${batchId}!*\n\n` +
             `👉 *Click here to open your Sawrny Mobile Dashboard:*\n${webAppUrl}`,
