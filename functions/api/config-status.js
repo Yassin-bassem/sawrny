@@ -3,6 +3,7 @@ export async function onRequestGet(context) {
   return new Response(JSON.stringify({
     hasGeminiKey: !!env.GEMINI_API_KEY,
     hasTelegramBot: !!env.TELEGRAM_BOT_TOKEN,
+    botToken: env.TELEGRAM_BOT_TOKEN || null,
     hasSupabase: !!env.SUPABASE_URL
   }), {
     headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }

@@ -429,10 +429,37 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // 10. Show Gallery Modal
-  async function showGallery(results) {
+  let activeBotToken = null;
+
+  // 1. Fetch Config Status
+  async function checkConfigStatus() {
+    try {
+      const res = await fetch(`${API_BASE}/api/config-status`);
+      const data = await res.json();
+      
+      if (data.botToken) {
+        activeBotToken = data.botToken;
+      }
+      if (data.hasGeminiKey) {
+        geminiStatus.classList.remove('offline');
+        geminiStatus.classList.add('online');
+        geminiStatus.title = "Gemini AI API Key Connected";
+      }
+      if (data.hasTelegramBot) {
+        telegramStatus.classList.remove('offline');
+        telegramStatus.classList.add('online');
+        telegramStatus.title = "Telegram Bot Active";
+      }
+    } catch (e) {
+      console.warn('Could not fetch config status:', e);
+    }
+  }
+
+  // 10. Show Gallery Modal & Send Branded Photos to Telegram
+  async function showGallery(results, chatId = null) {
     galleryGrid.innerHTML = '';
-    
+    const targetChatId = chatId || currentBatch.chatId;
+
     for (const res of results) {
       const brandedUrl = await applyClientBranding(res.resultUrl, res.productCode, currentBatch.logoPosition);
       const card = document.createElement('div');
@@ -447,6 +474,26 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       `;
       galleryGrid.appendChild(card);
+
+      // Automatically Send Branded Photo to Telegram
+      if (activeBotToken && targetChatId) {
+        try {
+          const blobRes = await fetch(brandedUrl);
+          const blob = await blobRes.blob();
+          const formData = new FormData();
+          formData.append('chat_id', targetChatId);
+          formData.append('photo', blob, `${res.productCode}_photoshoot.jpg`);
+          formData.append('caption', `✨ *Product Code:* ${res.productCode}\n👶 *Age:* ${res.ageGroup || '2-5 yrs'} | *Gender:* ${res.gender || 'Unisex'}`);
+          formData.append('parse_mode', 'Markdown');
+
+          fetch(`https://api.telegram.org/bot${activeBotToken}/sendPhoto`, {
+            method: 'POST',
+            body: formData
+          });
+        } catch (tgErr) {
+          console.error('Telegram send branded photo error:', tgErr);
+        }
+      }
     }
 
     galleryModal.style.display = 'flex';

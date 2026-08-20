@@ -11,7 +11,6 @@ export async function onRequestPost(context) {
   const apiKey = env.GEMINI_API_KEY;
   const supabaseUrl = env.SUPABASE_URL;
   const supabaseKey = env.SUPABASE_KEY;
-  const botToken = env.TELEGRAM_BOT_TOKEN;
 
   if (!apiKey) {
     return new Response(JSON.stringify({ error: 'GEMINI_API_KEY missing in Cloudflare Environment Variables' }), {
@@ -54,15 +53,15 @@ export async function onRequestPost(context) {
   const results = [];
   for (const item of batch.items) {
     try {
-      let bgPrompt = "standing upright on a clean high-key white studio wooden floor with soft studio daylight lighting";
+      let bgPrompt = "standing upright on a clean high-key white studio wooden floor with soft daylight studio lighting";
       if (backgroundStyle === 'campaign') {
         bgPrompt = "standing in a cozy aesthetic nursery room with soft pastel backdrop walls, warm sunlight, eucalyptus greenery, and wooden decor";
       } else if (backgroundStyle === 'outdoor') {
-        bgPrompt = "standing in a sunny lush garden with warm golden hour light and soft greenery bokeh";
+        bgPrompt = "standing in a sunny lush garden with warm golden hour light and soft greenery background bokeh";
       }
 
       const genderTerm = item.gender === 'Girl' ? 'cute young girl model' : item.gender === 'Boy' ? 'cute young boy model' : 'cute child model';
-      const promptText = `A full-body commercial catalog photograph of a happy ${genderTerm} (${item.ageGroup || '2-5 yrs'}) ${bgPrompt}, actively WEARING THIS EXACT children clothing item on their body. CRITICAL MANDATE: The photo MUST feature a real human child model wearing the garment. DO NOT show hangers or empty clothing displays. Authentic camera photography, 8k resolution.`;
+      const promptText = `RAW high resolution commercial fashion catalog photograph, a happy ${genderTerm} (${item.ageGroup || '2-5 yrs'}) ${bgPrompt}, actively WEARING THIS EXACT children clothing item on their body. CRITICAL MANDATE: The photo MUST feature a real human child model wearing the garment. DO NOT show hangers or empty clothing displays. Sharp focus studio camera photography, 8k resolution commercial kids clothing catalog.`;
 
       let imagePart = null;
       if (item.originalUrl && item.originalUrl.startsWith('http')) {
@@ -79,7 +78,7 @@ export async function onRequestPost(context) {
         } catch (e) {}
       }
 
-      // Call Google Gemini 2.5 Image REST API
+      // Call Google Gemini 2.5 Image REST API with High Resolution Config
       const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${apiKey}`;
       const payloadParts = [{ text: promptText }];
       if (imagePart) payloadParts.push(imagePart);
@@ -107,36 +106,12 @@ export async function onRequestPost(context) {
       let finalResultUrl = item.originalUrl;
       if (generatedImgB64) {
         finalResultUrl = `data:image/jpeg;base64,${generatedImgB64}`;
-
-        // Send Photo directly to Telegram if bot token and chatId exist
-        if (botToken && batch.chatId) {
-          try {
-            const byteCharacters = atob(generatedImgB64);
-            const byteNumbers = new Array(byteCharacters.length);
-            for (let i = 0; i < byteCharacters.length; i++) {
-              byteNumbers[i] = byteCharacters.charCodeAt(i);
-            }
-            const byteArray = new Uint8Array(byteNumbers);
-            const blob = new Blob([byteArray], { type: 'image/jpeg' });
-
-            const formData = new FormData();
-            formData.append('chat_id', batch.chatId);
-            formData.append('photo', blob, `${item.productCode}_photoshoot.jpg`);
-            formData.append('caption', `✨ *Product Code:* ${item.productCode}\n👶 *Age:* ${item.ageGroup || '2-5 yrs'} | *Gender:* ${item.gender || 'Unisex'}`);
-            formData.append('parse_mode', 'Markdown');
-
-            await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
-              method: 'POST',
-              body: formData
-            });
-          } catch (tgErr) {}
-        }
       }
 
       item.resultUrl = finalResultUrl;
-      results.push({ ...item, resultUrl: finalResultUrl });
+      results.push({ ...item, resultUrl: finalResultUrl, chatId: batch.chatId });
     } catch (ie) {
-      results.push({ ...item, resultUrl: item.originalUrl });
+      results.push({ ...item, resultUrl: item.originalUrl, chatId: batch.chatId });
     }
   }
 
@@ -158,7 +133,7 @@ export async function onRequestPost(context) {
     } catch (e) {}
   }
 
-  return new Response(JSON.stringify({ success: true, results }), {
+  return new Response(JSON.stringify({ success: true, results, chatId: batch.chatId }), {
     headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
   });
 }
