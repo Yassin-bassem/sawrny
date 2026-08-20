@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sawrny (صورني) | AI Children Wear Photoshoot Studio</title>
+  <meta name="description" content="Turn children clothing photos into professional AI photoshoot campaigns instantly. Connected with Telegram.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Background Glow Elements -->
+  <div class="ambient-glow glow-1"></div>
+  <div class="ambient-glow glow-2"></div>
+
+  <!-- Main Container -->
+  <div class="app-container">
+
+    <!-- Top Navigation Bar -->
+    <header class="top-nav">
+      <div class="brand-badge">
+        <img id="nav-logo" src="/assets/minime_logo_transparent.png" alt="Mini Me Logo" class="brand-logo-img">
+        <div class="brand-title">
+          <h1>SAWRNY <span>صورني</span></h1>
+          <p class="tagline">Children's Wear AI Photoshoot</p>
+        </div>
+      </div>
+      <div class="status-pills">
+        <div id="gemini-status" class="status-pill offline" title="Gemini AI Key Status">
+          <span class="dot"></span> AI Key
+        </div>
+        <div id="telegram-status" class="status-pill offline" title="Telegram Bot Status">
+          <span class="dot"></span> Telegram Bot
+        </div>
+      </div>
+    </header>
+
+    <!-- Global Settings Card -->
+    <section class="card glass-card logo-settings-card">
+      <div class="card-header">
+        <div class="header-icon">✨</div>
+        <div>
+          <h3>Brand Branding & Logo</h3>
+          <p>Applied automatically to all collection photoshoot photos</p>
+        </div>
+      </div>
+      <div class="logo-settings-grid">
+        <div class="logo-preview-box">
+          <img id="brand-logo-preview" src="/assets/minime_logo_transparent.png" alt="Brand Logo">
+          <label for="logo-upload-input" class="btn btn-secondary btn-sm">
+            📁 Change Logo
+          </label>
+          <input type="file" id="logo-upload-input" accept="image/*" style="display:none;">
+        </div>
+        <div class="logo-options">
+          <label class="input-label">Logo Stamp Position</label>
+          <div class="position-selector">
+            <button type="button" class="pos-btn active" data-pos="top-right">Top Right</button>
+            <button type="button" class="pos-btn" data-pos="top-left">Top Left</button>
+            <button type="button" class="pos-btn" data-pos="bottom-right">Bottom Right</button>
+            <button type="button" class="pos-btn" data-pos="bottom-left">Bottom Left</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Upload & Collection Batch Header -->
+    <section class="batch-header-section">
+      <div class="batch-title-group">
+        <h2 id="batch-heading">Collection Photoshoot Batch</h2>
+        <p id="batch-subheading">Upload new collection photos or load Telegram batch</p>
+      </div>
+      <div class="batch-actions">
+        <label for="garment-upload-input" class="btn btn-primary">
+          ➕ Upload Garment Photos
+        </label>
+        <input type="file" id="garment-upload-input" multiple accept="image/*" style="display:none;">
+        <button id="btn-load-demo" class="btn btn-secondary">
+          🧪 Load Samples Demo
+        </button>
+      </div>
+    </section>
+
+    <!-- Empty State Banner -->
+    <div id="empty-state" class="card glass-card empty-card" style="display:none;">
+      <div class="empty-icon">📷</div>
+      <h3>No Collection Photos Loaded</h3>
+      <p>Send photos directly to your Telegram bot or click upload above to start!</p>
+    </div>
+
+    <!-- Items Grid Matrix -->
+    <section id="items-container" class="items-grid"></section>
+
+    <!-- Campaign Mode & Generation Bar -->
+    <section id="generation-bar" class="card glass-card generation-card">
+      <div class="campaign-options-row">
+        
+        <!-- Background Scene Selector -->
+        <div class="scene-option-group">
+          <label class="input-label">📸 Campaign Background Scene</label>
+          <div class="scene-buttons" id="scene-selector">
+            <button type="button" class="scene-btn active" data-scene="white">
+              ⚪ White Studio Floor
+            </button>
+            <button type="button" class="scene-btn" data-scene="campaign">
+              ✨ Aesthetic Drop Campaign Room
+            </button>
+            <button type="button" class="scene-btn" data-scene="outdoor">
+              🌿 Golden Hour Garden
+            </button>
+          </div>
+        </div>
+
+        <div class="toggle-option">
+          <label class="switch">
+            <input type="checkbox" id="campaign-extra-toggle">
+            <span class="slider round"></span>
+          </label>
+          <div class="toggle-text">
+            <strong>Full Campaign Mode (Extra Ideas)</strong>
+            <p>Generate studio product flat-lays + 3-children group photos along with model photos</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="action-footer">
+        <button id="btn-auto-sku" class="btn btn-secondary">
+          🔢 Auto-Assign SKUs
+        </button>
+        <button id="btn-generate-all" class="btn btn-gradient btn-lg">
+          🚀 Generate All Photoshoot Pictures
+        </button>
+      </div>
+    </section>
+
+    <!-- Progress Modal -->
+    <div id="progress-modal" class="modal-overlay" style="display:none;">
+      <div class="modal-content glass-card">
+        <div class="loader-spinner"></div>
+        <h3 id="progress-title">Generating Photoshoots...</h3>
+        <p id="progress-desc">Gemini is rendering child models wearing your garments</p>
+        <div class="progress-bar-container">
+          <div id="progress-bar-fill" class="progress-bar-fill" style="width: 0%;"></div>
+        </div>
+        <p id="progress-status-text">0 / 0 completed</p>
+      </div>
+    </div>
+
+    <!-- Final Gallery Modal -->
+    <div id="gallery-modal" class="modal-overlay" style="display:none;">
+      <div class="modal-content glass-card gallery-modal-content">
+        <div class="modal-header">
+          <h2>🎉 High-Res Photoshoot Gallery</h2>
+          <button id="btn-close-gallery" class="close-btn">&times;</button>
+        </div>
+        <p class="modal-subtitle">Watermark-free, high quality images ready for Instagram & Telegram</p>
+        <div id="gallery-grid" class="gallery-grid"></div>
+        <div class="modal-footer">
+          <button id="btn-download-all" class="btn btn-gradient">
+            📥 Download All Photos (ZIP)
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

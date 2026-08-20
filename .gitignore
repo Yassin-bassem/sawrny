@@ -1,0 +1,14 @@
+node_modules/
+.env
+data_store.json
+*.log
+scratch_*
+official_*
+paid_*
+exact_*
+forced_*
+google_*
+public/uploads/*
+!public/uploads/.gitkeep
+public/output/*
+!public/output/.gitkeep
