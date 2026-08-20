@@ -117,10 +117,10 @@ async function getBatchFromSupabase(batchId) {
 // TELEGRAM BOT SETUP
 // ----------------------------------------------------
 let bot = null;
-if (process.env.TELEGRAM_BOT_TOKEN) {
+if (process.env.TELEGRAM_BOT_TOKEN && process.env.ENABLE_LOCAL_POLLING === 'true') {
   try {
     bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
-    console.log('🤖 Telegram Bot is running...');
+    console.log('🤖 Telegram Bot local polling is active...');
 
     // User session photos buffer
     const userSessions = {};

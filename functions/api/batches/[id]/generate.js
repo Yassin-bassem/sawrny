@@ -133,6 +133,21 @@ export async function onRequestPost(context) {
     } catch (e) {}
   }
 
+  // 4. Send Telegram message to user when generation is complete
+  if (batch.chatId && botToken) {
+    try {
+      await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: batch.chatId,
+          text: `🎉 *Batch #${batchId} Photoshoot Completed!*\n\n👉 [Click here to view & download high-res photos](https://sawrny.pages.dev/#batch/${batchId})`,
+          parse_mode: 'Markdown'
+        })
+      });
+    } catch (e) {}
+  }
+
   return new Response(JSON.stringify({ success: true, results, chatId: batch.chatId }), {
     headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
   });
