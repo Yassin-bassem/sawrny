@@ -184,6 +184,7 @@ if (process.env.TELEGRAM_BOT_TOKEN) {
             items: session.items
           };
           saveDataStore();
+          saveBatchToSupabase(batchId, dataStore.batches[batchId]);
 
           const baseUrl = process.env.PUBLIC_URL || 'https://sawrny.pages.dev';
           const webAppUrl = `${baseUrl}/#batch/${batchId}`;
