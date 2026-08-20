@@ -124,17 +124,14 @@ export async function onRequestPost(context) {
       }
 
       let finalResultUrl = item.originalUrl;
-      let debugInfo = null;
       if (generatedImgB64) {
         finalResultUrl = `data:${imgMimeType};base64,${generatedImgB64}`;
-      } else {
-        debugInfo = genData;
       }
 
       item.resultUrl = finalResultUrl;
-      results.push({ ...item, resultUrl: finalResultUrl, chatId: batch.chatId, debugInfo });
+      results.push({ ...item, resultUrl: finalResultUrl, chatId: batch.chatId });
     } catch (ie) {
-      results.push({ ...item, resultUrl: item.originalUrl, chatId: batch.chatId, debugError: ie.message });
+      results.push({ ...item, resultUrl: item.originalUrl, chatId: batch.chatId });
     }
   }
 
