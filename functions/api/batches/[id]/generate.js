@@ -40,12 +40,14 @@ export async function onRequestPost(context) {
     });
   }
 
-  // Helper for safe Base64 conversion without stack overflow
+  // Helper for fast Base64 conversion without CPU bottleneck in Cloudflare Workers
   function bufferToBase64(arrayBuf) {
     const bytes = new Uint8Array(arrayBuf);
     let binary = '';
-    for (let i = 0; i < bytes.length; i++) {
-      binary += String.fromCharCode(bytes[i]);
+    const len = bytes.byteLength;
+    const CHUNK_SIZE = 0x8000;
+    for (let i = 0; i < len; i += CHUNK_SIZE) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK_SIZE));
     }
     return btoa(binary);
   }
@@ -83,7 +85,9 @@ export async function onRequestPost(context) {
               data: base64Data
             }
           };
-        } catch (e) {}
+        } catch (imgErr) {
+          console.error('Fetch image error:', imgErr.message);
+        }
       }
 
       // Call Google Gemini 2.5 Flash Image REST API
@@ -116,11 +120,14 @@ export async function onRequestPost(context) {
       let finalResultUrl = item.originalUrl;
       if (generatedImgB64) {
         finalResultUrl = `data:${imgMimeType};base64,${generatedImgB64}`;
+      } else {
+        console.error('No generated image from Gemini:', JSON.stringify(genData));
       }
 
       item.resultUrl = finalResultUrl;
       results.push({ ...item, resultUrl: finalResultUrl, chatId: batch.chatId });
     } catch (ie) {
+      console.error('Item processing error:', ie.message);
       results.push({ ...item, resultUrl: item.originalUrl, chatId: batch.chatId });
     }
   }
@@ -154,11 +161,12 @@ export async function onRequestPost(context) {
           const b64 = parts[1];
 
           const binaryStr = atob(b64);
-          const bytes = new Uint8Array(binaryStr.length);
-          for (let i = 0; i < binaryStr.length; i++) {
+          const len = binaryStr.length;
+          const bytes = new Uint8Array(len);
+          for (let i = 0; i < len; i++) {
             bytes[i] = binaryStr.charCodeAt(i);
           }
-          const blob = new Blob([bytes], { type: mime });
+          const blob = new Blob([bytes.buffer], { type: mime });
 
           const formData = new FormData();
           formData.append('chat_id', batch.chatId);
