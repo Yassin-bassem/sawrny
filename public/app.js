@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentBatch = {
     id: null,
     logoPosition: 'top-right',
+    codePosition: 'bottom-right',
     items: []
   };
 
@@ -19,7 +20,8 @@ document.addEventListener('DOMContentLoaded', () => {
       gender: 'Girl',
       productCode: 'MM-801',
       campaignMode: 'model',
-      designPosition: 'front'
+      designPosition: 'front',
+      customPrompt: ''
     },
     {
       id: 'sample_2',
@@ -29,7 +31,8 @@ document.addEventListener('DOMContentLoaded', () => {
       gender: 'Unisex',
       productCode: 'MM-802',
       campaignMode: 'model',
-      designPosition: 'front'
+      designPosition: 'front',
+      customPrompt: ''
     }
   ];
 
@@ -123,12 +126,21 @@ document.addEventListener('DOMContentLoaded', () => {
     renderItems();
   }
 
-  // 3. Logo Position Buttons
-  document.querySelectorAll('.pos-btn').forEach(btn => {
+  // 3. Logo & Product Code Position Buttons
+  document.querySelectorAll('.logo-pos-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
-      document.querySelectorAll('.pos-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.logo-pos-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       currentBatch.logoPosition = btn.dataset.pos;
+      renderItems(); // Re-render preview overlays
+    });
+  });
+
+  document.querySelectorAll('.code-pos-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      document.querySelectorAll('.code-pos-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentBatch.codePosition = btn.dataset.pos;
       renderItems(); // Re-render preview overlays
     });
   });
@@ -209,6 +221,12 @@ document.addEventListener('DOMContentLoaded', () => {
       if (currentBatch.logoPosition === 'bottom-right') logoPosStyle = 'bottom:45px; right:12px;';
       if (currentBatch.logoPosition === 'bottom-left') logoPosStyle = 'bottom:45px; left:12px;';
 
+      // Product Code Badge overlay positioning calculation
+      let codePosStyle = 'bottom:12px; right:12px;';
+      if (currentBatch.codePosition === 'bottom-left') codePosStyle = 'bottom:12px; left:12px;';
+      if (currentBatch.codePosition === 'top-right') codePosStyle = 'top:12px; right:12px;';
+      if (currentBatch.codePosition === 'top-left') codePosStyle = 'top:12px; left:12px;';
+
       const isBack = item.designPosition === 'back';
 
       card.innerHTML = `
@@ -216,12 +234,17 @@ document.addEventListener('DOMContentLoaded', () => {
           <img src="${item.originalUrl}" alt="Garment Photo">
           <img src="${brandLogoPreview.src}" class="watermark-badge-preview" style="${logoPosStyle}" alt="Watermark Badge">
           ${isBack ? '<div class="back-design-badge">🔄 Back Design</div>' : ''}
-          <div class="code-overlay-badge">CODE: ${item.productCode || 'MM-' + (index + 1)}</div>
+          <div class="code-overlay-badge" style="${codePosStyle}">CODE: ${item.productCode || 'MM-' + (index + 1)}</div>
         </div>
 
         <div class="item-control-group">
           <label class="input-label">Product SKU / Code</label>
           <input type="text" class="sku-input" value="${item.productCode || ''}" data-idx="${index}" placeholder="e.g. MM-801">
+        </div>
+
+        <div class="item-control-group">
+          <label class="input-label">✨ Custom AI Prompt (Optional)</label>
+          <input type="text" class="custom-prompt-input" value="${item.customPrompt || ''}" data-idx="${index}" placeholder="e.g. A cute child sitting on a swing in a sunny park wearing this outfit...">
         </div>
 
         <div class="item-control-group">
@@ -283,6 +306,13 @@ document.addEventListener('DOMContentLoaded', () => {
         // Update badge text
         const card = e.target.closest('.item-card');
         card.querySelector('.code-overlay-badge').textContent = `CODE: ${e.target.value.toUpperCase() || 'MM'}`;
+      });
+    });
+
+    document.querySelectorAll('.custom-prompt-input').forEach(input => {
+      input.addEventListener('input', (e) => {
+        const idx = e.target.dataset.idx;
+        currentBatch.items[idx].customPrompt = e.target.value;
       });
     });
 
@@ -385,7 +415,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // 9. Client-Side HTML5 Canvas Watermarking Engine
-  async function applyClientBranding(imageUrl, productCode, logoPosition = 'top-right') {
+  async function applyClientBranding(imageUrl, productCode, logoPosition = 'top-right', codePosition = 'bottom-right') {
     return new Promise((resolve) => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
@@ -433,8 +463,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const badgeH = Math.round(fontSize + paddingY * 2 + 4);
             const margin = Math.round(canvas.width * 0.04);
 
-            const bx = canvas.width - badgeW - margin;
-            const by = canvas.height - badgeH - margin;
+            let bx = canvas.width - badgeW - margin;
+            let by = canvas.height - badgeH - margin;
+            if (codePosition === 'bottom-left') { bx = margin; by = canvas.height - badgeH - margin; }
+            else if (codePosition === 'top-right') { bx = canvas.width - badgeW - margin; by = margin; }
+            else if (codePosition === 'top-left') { bx = margin; by = margin; }
 
             // Draw dark rounded rect badge background
             ctx.fillStyle = 'rgba(13, 17, 23, 0.92)';
@@ -497,7 +530,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const targetChatId = chatId || currentBatch.chatId;
 
     for (const res of results) {
-      const brandedUrl = await applyClientBranding(res.resultUrl, res.productCode, currentBatch.logoPosition);
+      const brandedUrl = await applyClientBranding(res.resultUrl, res.productCode, currentBatch.logoPosition, currentBatch.codePosition);
       const card = document.createElement('div');
       card.className = 'gallery-card';
       card.innerHTML = `

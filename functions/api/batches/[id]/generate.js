@@ -69,8 +69,13 @@ export async function onRequestPost(context) {
         viewPrompt = "REAR VIEW / BACK VIEW OF CHILD MODEL: The print, logo, pattern, or main artwork design of this outfit is located ON THE BACK of the garment. Render a back view / rear view photo showing the child model facing away from the camera or turned around so the BACK of the outfit and its artwork are clearly displayed. CRITICAL MANDATE: DO NOT place the main artwork or design on the front of the garment; the front must remain plain/clean and the main design featured on the rear/back of the child model.";
       }
 
-      const genderTerm = item.gender === 'Girl' ? 'cute young girl model' : item.gender === 'Boy' ? 'cute young boy model' : 'cute child model';
-      const promptText = `RAW high resolution commercial fashion catalog photograph, a happy ${genderTerm} (${item.ageGroup || '2-5 yrs'}) ${bgPrompt}, actively WEARING THIS EXACT children clothing item on their body. ${viewPrompt} CRITICAL MANDATE: The photo MUST feature a real human child model wearing the garment. DO NOT show hangers or empty clothing displays. Sharp focus studio camera photography, 8k resolution commercial kids clothing catalog.`;
+      let promptText;
+      if (item.customPrompt && item.customPrompt.trim()) {
+        promptText = `RAW high resolution commercial fashion catalog photograph of a child model: ${item.customPrompt.trim()}. The child model MUST be actively WEARING THIS EXACT children clothing item on their body. ${viewPrompt} CRITICAL MANDATE: The photo MUST feature a real human child model wearing the garment. DO NOT show hangers or empty clothing displays. Sharp focus studio camera photography, 8k resolution commercial kids clothing catalog.`;
+      } else {
+        const genderTerm = item.gender === 'Girl' ? 'cute young girl model' : item.gender === 'Boy' ? 'cute young boy model' : 'cute child model';
+        promptText = `RAW high resolution commercial fashion catalog photograph, a happy ${genderTerm} (${item.ageGroup || '2-5 yrs'}) ${bgPrompt}, actively WEARING THIS EXACT children clothing item on their body. ${viewPrompt} CRITICAL MANDATE: The photo MUST feature a real human child model wearing the garment. DO NOT show hangers or empty clothing displays. Sharp focus studio camera photography, 8k resolution commercial kids clothing catalog.`;
+      }
 
       let imagePart = null;
       if (item.originalUrl && item.originalUrl.startsWith('http')) {

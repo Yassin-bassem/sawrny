@@ -56,12 +56,23 @@
           <input type="file" id="logo-upload-input" accept="image/*" style="display:none;">
         </div>
         <div class="logo-options">
-          <label class="input-label">Logo Stamp Position</label>
-          <div class="position-selector">
-            <button type="button" class="pos-btn active" data-pos="top-right">Top Right</button>
-            <button type="button" class="pos-btn" data-pos="top-left">Top Left</button>
-            <button type="button" class="pos-btn" data-pos="bottom-right">Bottom Right</button>
-            <button type="button" class="pos-btn" data-pos="bottom-left">Bottom Left</button>
+          <div class="option-row">
+            <label class="input-label">Logo Stamp Position</label>
+            <div class="position-selector" id="logo-pos-selector">
+              <button type="button" class="pos-btn logo-pos-btn active" data-pos="top-right">Top Right</button>
+              <button type="button" class="pos-btn logo-pos-btn" data-pos="top-left">Top Left</button>
+              <button type="button" class="pos-btn logo-pos-btn" data-pos="bottom-right">Bottom Right</button>
+              <button type="button" class="pos-btn logo-pos-btn" data-pos="bottom-left">Bottom Left</button>
+            </div>
+          </div>
+          <div class="option-row" style="margin-top: 14px;">
+            <label class="input-label">Product Code Tag Position</label>
+            <div class="position-selector" id="code-pos-selector">
+              <button type="button" class="pos-btn code-pos-btn active" data-pos="bottom-right">Bottom Right</button>
+              <button type="button" class="pos-btn code-pos-btn" data-pos="bottom-left">Bottom Left</button>
+              <button type="button" class="pos-btn code-pos-btn" data-pos="top-right">Top Right</button>
+              <button type="button" class="pos-btn code-pos-btn" data-pos="top-left">Top Left</button>
+            </div>
           </div>
         </div>
       </div>

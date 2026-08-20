@@ -168,7 +168,8 @@ if (process.env.TELEGRAM_BOT_TOKEN && process.env.ENABLE_LOCAL_POLLING === 'true
           gender: 'Unisex',
           productCode: `MM-${100 + session.items.length + 1}`,
           campaignMode: 'model',
-          designPosition: 'front'
+          designPosition: 'front',
+          customPrompt: ''
         });
 
         // Clear existing timer and set a 3-second buffer to collect batch photos
@@ -182,6 +183,7 @@ if (process.env.TELEGRAM_BOT_TOKEN && process.env.ENABLE_LOCAL_POLLING === 'true
             chatId,
             createdAt: new Date().toISOString(),
             logoPosition: 'top-right',
+            codePosition: 'bottom-right',
             items: session.items
           };
           saveDataStore();
@@ -208,7 +210,7 @@ if (process.env.TELEGRAM_BOT_TOKEN && process.env.ENABLE_LOCAL_POLLING === 'true
 // ----------------------------------------------------
 // WATERMARKING & BRANDING ENGINE (SHARP)
 // ----------------------------------------------------
-async function applyBrandingOverlay(baseImagePath, logoPath, productCode, logoPosition = 'top-right') {
+async function applyBrandingOverlay(baseImagePath, logoPath, productCode, logoPosition = 'top-right', codePosition = 'bottom-right') {
   try {
     const base = sharp(baseImagePath);
     const metadata = await base.metadata();
@@ -272,10 +274,24 @@ async function applyBrandingOverlay(baseImagePath, logoPath, productCode, logoPo
       `;
 
       const badgeMargin = Math.round(width * 0.04);
+      let badgeLeft = width - badgeW - badgeMargin;
+      let badgeTop = height - badgeH - badgeMargin;
+
+      if (codePosition === 'bottom-left') {
+        badgeLeft = badgeMargin;
+        badgeTop = height - badgeH - badgeMargin;
+      } else if (codePosition === 'top-right') {
+        badgeLeft = width - badgeW - badgeMargin;
+        badgeTop = badgeMargin;
+      } else if (codePosition === 'top-left') {
+        badgeLeft = badgeMargin;
+        badgeTop = badgeMargin;
+      }
+
       compositeOps.push({
         input: Buffer.from(svgBadge),
-        top: height - badgeH - badgeMargin,
-        left: width - badgeW - badgeMargin
+        top: Math.max(0, badgeTop),
+        left: Math.max(0, badgeLeft)
       });
     }
 
@@ -290,7 +306,7 @@ async function applyBrandingOverlay(baseImagePath, logoPath, productCode, logoPo
 // ----------------------------------------------------
 // AI PHOTOSHOOT GENERATION CONTROLLER
 // ----------------------------------------------------
-async function generateGarmentPhotoshoot(item, logoPath, logoPosition, isCampaignExtra = false, backgroundStyle = 'white') {
+async function generateGarmentPhotoshoot(item, logoPath, logoPosition, isCampaignExtra = false, backgroundStyle = 'white', codePosition = 'bottom-right') {
   const originalPath = path.join(UPLOADS_DIR, item.filename);
   let resultFilename = `output_${item.id}_${Date.now()}.jpg`;
   let resultPath = path.join(OUTPUT_DIR, resultFilename);
@@ -370,10 +386,14 @@ Provide a concise 2-sentence description for fashion photoshoot prompt.`;
     }
 
     // 3. Synthesize Multimodal Image-to-Image Try-On Prompt with Strict Child Model Mandate
-    const genderTerm = item.gender === 'Girl' ? 'cute young girl model' : item.gender === 'Boy' ? 'cute young boy model' : 'cute child model';
-    const ageDetail = item.ageGroup || '2-5 years old';
-
-    const promptTextForGen = `A full-body commercial catalog photograph of a happy ${genderTerm} (${ageDetail}) ${bgPrompt}, actively WEARING THIS EXACT children apparel item on their body: ${garmentDescription}. ${viewPrompt} CRITICAL MANDATE: The photo MUST feature a real human child model wearing the garment on their body. DO NOT generate hangers, wall shelves, wooden pegs, mannequins, or empty clothing displays. Show a real child model wearing the outfit. Authentic camera photography, 8k resolution commercial kids clothing catalog.`;
+    let promptTextForGen;
+    if (item.customPrompt && item.customPrompt.trim()) {
+      promptTextForGen = `A commercial fashion catalog photograph of a child model actively wearing this outfit: ${item.customPrompt.trim()}. The child model MUST be actively WEARING THIS EXACT children apparel item on their body: ${garmentDescription}. ${viewPrompt} CRITICAL MANDATE: The photo MUST feature a real human child model wearing the garment on their body. DO NOT generate hangers, wall shelves, wooden pegs, mannequins, or empty clothing displays. Show a real child model wearing the outfit. Authentic camera photography, 8k resolution commercial kids clothing catalog.`;
+    } else {
+      const genderTerm = item.gender === 'Girl' ? 'cute young girl model' : item.gender === 'Boy' ? 'cute young boy model' : 'cute child model';
+      const ageDetail = item.ageGroup || '2-5 years old';
+      promptTextForGen = `A full-body commercial catalog photograph of a happy ${genderTerm} (${ageDetail}) ${bgPrompt}, actively WEARING THIS EXACT children apparel item on their body: ${garmentDescription}. ${viewPrompt} CRITICAL MANDATE: The photo MUST feature a real human child model wearing the garment on their body. DO NOT generate hangers, wall shelves, wooden pegs, mannequins, or empty clothing displays. Show a real child model wearing the outfit. Authentic camera photography, 8k resolution commercial kids clothing catalog.`;
+    }
 
     console.log(`[Official Multimodal Gemini Image API Prompt for ${item.productCode} (${backgroundStyle})]:`, promptTextForGen);
 
@@ -408,7 +428,7 @@ Provide a concise 2-sentence description for fashion photoshoot prompt.`;
     }
 
     // 5. Apply Transparent Mini Me Logo & Product Code Badge Overlay
-    const finalBuffer = await applyBrandingOverlay(tempGenPath, logoPath, item.productCode, logoPosition);
+    const finalBuffer = await applyBrandingOverlay(tempGenPath, logoPath, item.productCode, logoPosition, codePosition);
     fs.writeFileSync(resultPath, finalBuffer);
 
     // Clean temp
@@ -417,7 +437,7 @@ Provide a concise 2-sentence description for fashion photoshoot prompt.`;
     return `/output/${resultFilename}`;
   } catch (err) {
     console.error(`Official Gemini AI Generation Error for ${item.productCode}:`, err.message);
-    const brandedBuffer = await applyBrandingOverlay(originalPath, logoPath, item.productCode, logoPosition);
+    const brandedBuffer = await applyBrandingOverlay(originalPath, logoPath, item.productCode, logoPosition, codePosition);
     fs.writeFileSync(resultPath, brandedBuffer);
     return `/output/${resultFilename}`;
   }
@@ -440,13 +460,15 @@ app.post('/api/upload-collection', upload.array('photos', 20), (req, res) => {
     gender: 'Unisex',
     productCode: `MM-${100 + idx + 1}`,
     campaignMode: 'model',
-    designPosition: 'front'
+    designPosition: 'front',
+    customPrompt: ''
   }));
 
   dataStore.batches[batchId] = {
     id: batchId,
     createdAt: new Date().toISOString(),
     logoPosition: 'top-right',
+    codePosition: 'bottom-right',
     items
   };
   saveDataStore();
@@ -483,9 +505,10 @@ app.post('/api/batches/:batchId/update', (req, res) => {
   const batch = dataStore.batches[req.params.batchId];
   if (!batch) return res.status(404).json({ error: 'Batch not found' });
 
-  const { items, logoPosition } = req.body;
+  const { items, logoPosition, codePosition } = req.body;
   if (items) batch.items = items;
   if (logoPosition) batch.logoPosition = logoPosition;
+  if (codePosition) batch.codePosition = codePosition;
 
   saveDataStore();
   res.json({ success: true, batch });
@@ -500,6 +523,7 @@ app.post('/api/batches/:batchId/generate', async (req, res) => {
       id: 'DEMO',
       createdAt: new Date().toISOString(),
       logoPosition: 'top-right',
+      codePosition: 'bottom-right',
       items: [
         {
           id: 'sample_1',
@@ -509,7 +533,8 @@ app.post('/api/batches/:batchId/generate', async (req, res) => {
           gender: 'Girl',
           productCode: 'MM-801',
           campaignMode: 'model',
-          designPosition: 'front'
+          designPosition: 'front',
+          customPrompt: ''
         },
         {
           id: 'sample_2',
@@ -519,7 +544,8 @@ app.post('/api/batches/:batchId/generate', async (req, res) => {
           gender: 'Unisex',
           productCode: 'MM-802',
           campaignMode: 'model',
-          designPosition: 'front'
+          designPosition: 'front',
+          customPrompt: ''
         }
       ]
     };
@@ -528,7 +554,7 @@ app.post('/api/batches/:batchId/generate', async (req, res) => {
 
   if (!batch) return res.status(404).json({ error: 'Batch not found' });
 
-  const { isCampaignExtra, backgroundStyle } = req.body;
+  const { isCampaignExtra, backgroundStyle, codePosition } = req.body;
   const logoPath = dataStore.logoPath;
 
   console.log(`🚀 Starting generation for Batch #${batch.id}...`);
@@ -537,7 +563,7 @@ app.post('/api/batches/:batchId/generate', async (req, res) => {
   for (let i = 0; i < batch.items.length; i++) {
     const item = batch.items[i];
     console.log(`Processing item ${i + 1}/${batch.items.length} [Code: ${item.productCode}]...`);
-    const outputUrl = await generateGarmentPhotoshoot(item, logoPath, batch.logoPosition, isCampaignExtra, backgroundStyle || batch.backgroundStyle || 'white');
+    const outputUrl = await generateGarmentPhotoshoot(item, logoPath, batch.logoPosition, isCampaignExtra, backgroundStyle || batch.backgroundStyle || 'white', codePosition || batch.codePosition || 'bottom-right');
     item.resultUrl = outputUrl;
     results.push({ ...item, resultUrl: outputUrl });
   }

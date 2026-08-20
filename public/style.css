@@ -379,19 +379,20 @@ body {
   font-weight: 600;
 }
 
-.sku-input {
+.sku-input, .custom-prompt-input {
   width: 100%;
   padding: 10px 14px;
   background: rgba(0, 0, 0, 0.4);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius-sm);
   color: #FFF;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-family: inherit;
 }
-.sku-input:focus {
+.sku-input:focus, .custom-prompt-input:focus {
   outline: none;
   border-color: var(--primary-teal);
+  box-shadow: 0 0 10px rgba(0, 210, 200, 0.25);
 }
 
 /* Generation Bar & Toggle */
