@@ -56,12 +56,61 @@ if (fs.existsSync(DATA_FILE)) {
   }
 }
 
+// Data Store Helpers
 function saveDataStore() {
   try {
     fs.writeFileSync(DATA_FILE, JSON.stringify(dataStore, null, 2));
-  } catch (e) {
-    console.error('Failed to save data_store:', e);
+  } catch (err) {
+    console.error('Error saving data store:', err);
   }
+}
+
+// ----------------------------------------------------
+// SUPABASE CLOUD DATABASE INTEGRATION ($0 COST)
+// ----------------------------------------------------
+async function saveBatchToSupabase(batchId, batchData) {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_KEY;
+  if (!supabaseUrl || !supabaseKey) return;
+
+  try {
+    await fetch(`${supabaseUrl}/rest/v1/batches`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Prefer': 'resolution=merge-duplicates'
+      },
+      body: JSON.stringify({
+        id: batchId,
+        data: batchData
+      })
+    });
+    console.log(`[Supabase Cloud DB]: Batch #${batchId} saved successfully!`);
+  } catch (e) {
+    console.error('[Supabase Cloud DB Error]:', e.message);
+  }
+}
+
+async function getBatchFromSupabase(batchId) {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_KEY;
+  if (!supabaseUrl || !supabaseKey) return null;
+
+  try {
+    const res = await fetch(`${supabaseUrl}/rest/v1/batches?id=eq.${batchId}`, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`
+      }
+    });
+    const rows = await res.json();
+    if (rows && rows.length > 0) return rows[0].data;
+  } catch (e) {
+    console.error('[Supabase Cloud DB Fetch Error]:', e.message);
+  }
+  return null;
 }
 
 // ----------------------------------------------------
@@ -404,8 +453,12 @@ app.post('/api/upload-logo', upload.single('logo'), (req, res) => {
 });
 
 // Get Batch Details
-app.get('/api/batches/:batchId', (req, res) => {
-  const batch = dataStore.batches[req.params.batchId];
+app.get('/api/batches/:batchId', async (req, res) => {
+  let batch = dataStore.batches[req.params.batchId];
+  if (!batch) {
+    batch = await getBatchFromSupabase(req.params.batchId);
+    if (batch) dataStore.batches[req.params.batchId] = batch;
+  }
   if (!batch) return res.status(404).json({ error: 'Batch not found' });
   res.json(batch);
 });
