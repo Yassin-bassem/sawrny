@@ -114,7 +114,7 @@ if (process.env.TELEGRAM_BOT_TOKEN) {
         session.items.push({
           id: `item_${Date.now()}_${session.items.length + 1}`,
           filename: fileName,
-          originalUrl: `/uploads/${fileName}`,
+          originalUrl: fileLink, // 100% Free Telegram Cloud CDN URL
           ageGroup: 'Kids (4-6 yrs)',
           gender: 'Unisex',
           productCode: `MM-${100 + session.items.length + 1}`,
@@ -249,8 +249,18 @@ async function generateGarmentPhotoshoot(item, logoPath, logoPosition, isCampaig
     const apiKey = process.env.GEMINI_API_KEY;
     const ai = new GoogleGenAI({ apiKey });
 
-    // Read original garment image bytes
-    const imageBytes = fs.readFileSync(originalPath);
+    // Read original garment image bytes (local file or Telegram Free CDN link)
+    let imageBytes;
+    if (fs.existsSync(originalPath)) {
+      imageBytes = fs.readFileSync(originalPath);
+    } else if (item.originalUrl && item.originalUrl.startsWith('http')) {
+      const imgRes = await fetch(item.originalUrl);
+      const arrBuf = await imgRes.arrayBuffer();
+      imageBytes = Buffer.from(arrBuf);
+    } else {
+      throw new Error(`Garment image file not found: ${originalPath}`);
+    }
+
     const b64Garment = imageBytes.toString('base64');
     const imagePart = {
       inlineData: {
