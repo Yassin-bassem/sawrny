@@ -74,19 +74,20 @@ export async function onRequestPost(context) {
       if (item.originalUrl && item.originalUrl.startsWith('http')) {
         try {
           const imgRes = await fetch(item.originalUrl);
+          const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
           const arrayBuf = await imgRes.arrayBuffer();
           const base64Data = bufferToBase64(arrayBuf);
           imagePart = {
             inlineData: {
-              mimeType: 'image/jpeg',
+              mimeType: contentType.split(';')[0],
               data: base64Data
             }
           };
         } catch (e) {}
       }
 
-      // Call Google Gemini 2.5 REST API
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+      // Call Google Gemini 2.5 Flash Image REST API
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${apiKey}`;
       const payloadParts = [{ text: promptText }];
       if (imagePart) payloadParts.push(imagePart);
 
@@ -100,11 +101,13 @@ export async function onRequestPost(context) {
 
       const genData = await genRes.json();
       let generatedImgB64 = null;
+      let imgMimeType = 'image/jpeg';
 
       if (genData.candidates && genData.candidates[0].content && genData.candidates[0].content.parts) {
         for (const p of genData.candidates[0].content.parts) {
-          if (p.inlineData) {
+          if (p.inlineData && p.inlineData.data) {
             generatedImgB64 = p.inlineData.data;
+            imgMimeType = p.inlineData.mimeType || 'image/jpeg';
             break;
           }
         }
@@ -112,7 +115,7 @@ export async function onRequestPost(context) {
 
       let finalResultUrl = item.originalUrl;
       if (generatedImgB64) {
-        finalResultUrl = `data:image/jpeg;base64,${generatedImgB64}`;
+        finalResultUrl = `data:${imgMimeType};base64,${generatedImgB64}`;
       }
 
       item.resultUrl = finalResultUrl;
@@ -140,15 +143,42 @@ export async function onRequestPost(context) {
     } catch (e) {}
   }
 
-  // 4. Send Telegram message to user when generation is complete
+  // 4. Send generated photos & message to Telegram user
   if (batch.chatId && botToken) {
     try {
+      for (const resItem of results) {
+        if (resItem.resultUrl && resItem.resultUrl.startsWith('data:image')) {
+          const parts = resItem.resultUrl.split(',');
+          const mimeMatch = parts[0].match(/:(.*?);/);
+          const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+          const b64 = parts[1];
+
+          const binaryStr = atob(b64);
+          const bytes = new Uint8Array(binaryStr.length);
+          for (let i = 0; i < binaryStr.length; i++) {
+            bytes[i] = binaryStr.charCodeAt(i);
+          }
+          const blob = new Blob([bytes], { type: mime });
+
+          const formData = new FormData();
+          formData.append('chat_id', batch.chatId);
+          formData.append('photo', blob, `${resItem.productCode || 'photoshoot'}.jpg`);
+          formData.append('caption', `✨ *Product Code:* ${resItem.productCode || ''}\n👶 *Age:* ${resItem.ageGroup || '2-5 yrs'} | *Gender:* ${resItem.gender || 'Unisex'}`);
+          formData.append('parse_mode', 'Markdown');
+
+          await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+            method: 'POST',
+            body: formData
+          });
+        }
+      }
+
       await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chat_id: batch.chatId,
-          text: `🎉 *Batch #${batchId} Photoshoot Completed!*\n\n👉 [Click here to view & download high-res photos](https://sawrny.pages.dev/#batch/${batchId})`,
+          text: `🎉 *Batch #${batchId} Photoshoot Completed!* Photos sent above.\n\n👉 [Click here to open Sawrny Dashboard](https://sawrny.pages.dev/#batch/${batchId})`,
           parse_mode: 'Markdown'
         })
       });

@@ -302,10 +302,16 @@ async function generateGarmentPhotoshoot(item, logoPath, logoPosition, isCampaig
 
     // Read original garment image bytes (local file or Telegram Free CDN link)
     let imageBytes;
+    let garmentMimeType = 'image/jpeg';
     if (fs.existsSync(originalPath)) {
       imageBytes = fs.readFileSync(originalPath);
+      const ext = path.extname(originalPath).toLowerCase();
+      if (ext === '.png') garmentMimeType = 'image/png';
+      if (ext === '.webp') garmentMimeType = 'image/webp';
     } else if (item.originalUrl && item.originalUrl.startsWith('http')) {
       const imgRes = await fetch(item.originalUrl);
+      const cType = imgRes.headers.get('content-type');
+      if (cType) garmentMimeType = cType.split(';')[0];
       const arrBuf = await imgRes.arrayBuffer();
       imageBytes = Buffer.from(arrBuf);
     } else {
@@ -316,7 +322,7 @@ async function generateGarmentPhotoshoot(item, logoPath, logoPosition, isCampaig
     const imagePart = {
       inlineData: {
         data: b64Garment,
-        mimeType: 'image/jpeg'
+        mimeType: garmentMimeType
       }
     };
 
