@@ -1,5 +1,10 @@
 document.addEventListener('DOMContentLoaded', () => {
   
+  // Dynamic API Base URL for Cloudflare Pages deployment
+  const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? ''
+    : (window.SERVER_URL || 'https://weak-groups-grab.loca.lt');
+
   // App State
   let currentBatch = {
     id: null,
@@ -58,7 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 1. Fetch Config Status
   async function checkConfigStatus() {
     try {
-      const res = await fetch('/api/config-status');
+      const res = await fetch(`${API_BASE}/api/config-status`);
       const data = await res.json();
       
       if (data.hasGeminiKey) {
@@ -91,7 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function loadBatch(batchId) {
     try {
-      const res = await fetch(`/api/batches/${batchId}`);
+      const res = await fetch(`${API_BASE}/api/batches/${batchId}`);
       if (res.ok) {
         const batch = await res.json();
         currentBatch = batch;
@@ -137,7 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
     formData.append('logo', file);
 
     try {
-      const res = await fetch('/api/upload-logo', { method: 'POST', body: formData });
+      const res = await fetch(`${API_BASE}/api/upload-logo`, { method: 'POST', body: formData });
       const data = await res.json();
       if (data.success) {
         brandLogoPreview.src = data.logoUrl + '?t=' + Date.now();
@@ -160,7 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     try {
-      const res = await fetch('/api/upload-collection', { method: 'POST', body: formData });
+      const res = await fetch(`${API_BASE}/api/upload-collection`, { method: 'POST', body: formData });
       const data = await res.json();
       if (data.success) {
         window.location.hash = `#batch/${data.batchId}`;
@@ -315,7 +320,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       // First save batch settings to server
       if (currentBatch.id && !currentBatch.id.startsWith('DEMO-')) {
-        await fetch(`/api/batches/${currentBatch.id}/update`, {
+        await fetch(`${API_BASE}/api/batches/${currentBatch.id}/update`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ items: currentBatch.items, logoPosition: currentBatch.logoPosition })
@@ -325,7 +330,7 @@ document.addEventListener('DOMContentLoaded', () => {
       progressBarFill.style.width = '40%';
 
       // Trigger generation endpoint with backgroundStyle
-      const res = await fetch(`/api/batches/${currentBatch.id || 'DEMO'}/generate`, {
+      const res = await fetch(`${API_BASE}/api/batches/${currentBatch.id || 'DEMO'}/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isCampaignExtra, backgroundStyle: selectedScene })
