@@ -76,12 +76,18 @@ export async function onRequestPost(context) {
       if (item.originalUrl && item.originalUrl.startsWith('http')) {
         try {
           const imgRes = await fetch(item.originalUrl);
-          const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
+          const rawContentType = imgRes.headers.get('content-type') || 'image/jpeg';
+          let validMime = 'image/jpeg';
+          const cleanMime = rawContentType.split(';')[0].toLowerCase();
+          if (cleanMime.startsWith('image/')) {
+            validMime = cleanMime;
+          }
+
           const arrayBuf = await imgRes.arrayBuffer();
           const base64Data = bufferToBase64(arrayBuf);
           imagePart = {
             inlineData: {
-              mimeType: contentType.split(';')[0],
+              mimeType: validMime,
               data: base64Data
             }
           };
