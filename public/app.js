@@ -1,9 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
   
-  // Dynamic API Base URL for Cloudflare Pages deployment
-  const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    ? ''
-    : (window.SERVER_URL || 'https://weak-groups-grab.loca.lt');
+  // Relative API Base URL for Cloudflare Functions & Local server
+  const API_BASE = '';
 
   // App State
   let currentBatch = {
